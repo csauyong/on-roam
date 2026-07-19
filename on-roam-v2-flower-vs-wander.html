@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>on roam — flower vs wander</title>
+<style>
+  :root{
+    --paper:#F6F5F1;
+    --ink:#201F1B;
+    --mute:#A29D91;
+    --hairline:#DCD9CF;
+    --stamp:#FF6F1E;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --serif:Georgia,"Times New Roman",serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,sans-serif}
+  .spacer{width:1px}
+
+  /* ---------- fixed stage ---------- */
+  .stage{position:fixed;inset:0;overflow:hidden}
+  .world{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
+  .world svg{position:absolute;top:0;left:0;overflow:visible}
+
+  .seg-solid{fill:none;stroke:var(--ink);stroke-width:1.4}
+  .seg-dash{fill:none;stroke:var(--mute);stroke-width:1.2;stroke-dasharray:2 7;stroke-linecap:round;
+            opacity:0;transition:opacity .6s ease}
+  .seg-dash.in{opacity:1}
+
+  /* ---------- chrome ---------- */
+  .wordmark{position:fixed;top:22px;left:26px;z-index:40;display:flex;align-items:center;gap:10px;
+            user-select:none;pointer-events:none}
+  .wordmark .name{font-family:var(--mono);font-size:13px;letter-spacing:.28em}
+  .marker{position:fixed;top:24px;right:26px;z-index:40;font-family:var(--mono);font-size:11px;
+          letter-spacing:.18em;display:flex;align-items:center;gap:8px;white-space:nowrap}
+  .marker .pip{width:7px;height:7px;border-radius:50%;background:var(--stamp);
+               box-shadow:0 0 6px rgba(255,111,30,.55)}
+  .hint{position:fixed;bottom:22px;left:26px;z-index:40;font-family:var(--mono);font-size:11px;
+        letter-spacing:.2em;color:var(--mute);transition:opacity .8s}
+  .hint.gone{opacity:0}
+
+  .controls{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:40;
+            display:flex;gap:22px;align-items:center}
+  .controls button{border:0;background:none;cursor:pointer;font-family:var(--mono);
+                   font-size:11px;letter-spacing:.24em;color:var(--mute);padding:6px 2px;
+                   border-bottom:1px solid transparent}
+  .controls button.active{color:var(--ink);border-bottom-color:var(--stamp)}
+  .controls button:focus-visible{outline:1.5px solid var(--stamp);outline-offset:3px}
+
+  .compass{position:fixed;bottom:16px;right:22px;z-index:40;width:52px;height:52px}
+  .compass svg{display:block}
+  .compass .needle{transform-origin:26px 26px;transition:none}
+  .compass .nlab{font-family:var(--mono);font-size:8px;letter-spacing:.1em;fill:var(--mute)}
+
+  @media (prefers-reduced-motion: no-preference){
+    .marker .pip,.now .pip{animation:pulse 2.6s ease-in-out infinite}
+    @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.5)}}
+  }
+
+  /* ---------- content on the line ---------- */
+  .place{position:absolute;z-index:5;font-family:var(--mono);font-size:10px;letter-spacing:.26em;
+         transform:translate(-50%,-50%);white-space:nowrap;opacity:0;transition:opacity .7s ease;
+         background:none;border:0;color:var(--ink);cursor:pointer;padding:4px 6px}
+  .place .yr{color:var(--mute);letter-spacing:.14em}
+  .place.in{opacity:1}
+  .place:focus-visible{outline:1.5px solid var(--stamp);outline-offset:2px}
+
+  .dot{position:absolute;z-index:6;width:22px;height:22px;border:0;background:none;cursor:pointer;
+       transform:translate(-50%,-50%);opacity:0;transition:opacity .7s ease;display:grid;place-items:center}
+  .dot.in{opacity:1}
+  .dot i{width:6px;height:6px;border-radius:50%;background:var(--paper);border:1.4px solid var(--ink);
+         transition:transform .18s ease,background .18s ease}
+  .dot:hover i,.dot:focus-visible i{transform:scale(1.6);background:var(--ink)}
+  .dot:focus-visible{outline:1.5px solid var(--stamp);outline-offset:2px;border-radius:50%}
+
+  .keyframe{position:absolute;z-index:7;border:0;padding:0;cursor:pointer;background:var(--paper);
+            transform:translate(-50%,-50%) rotate(var(--tilt,0deg));
+            box-shadow:0 1px 2px rgba(32,31,27,.10),0 8px 22px rgba(32,31,27,.10);
+            opacity:0;transition:opacity .8s ease,box-shadow .25s ease,scale .25s ease}
+  .keyframe.in{opacity:1}
+  .keyframe:hover,.keyframe:focus-visible{scale:1.035;
+            box-shadow:0 2px 4px rgba(32,31,27,.12),0 14px 34px rgba(32,31,27,.16)}
+  .keyframe:focus-visible{outline:1.5px solid var(--stamp);outline-offset:3px}
+
+  .photo{position:relative;overflow:hidden;display:block;width:158px;height:105px}
+  .photo::after{content:"";position:absolute;inset:0;
+    background:
+      radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(20,18,14,.28)),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/><feColorMatrix type='saturate' values='0'/></filter><rect width='120' height='120' filter='url(%23n)' opacity='.14'/></svg>");
+    mix-blend-mode:multiply;pointer-events:none}
+  .stamp{position:absolute;right:8px;bottom:6px;z-index:2;font-family:var(--mono);font-size:11px;
+         letter-spacing:.08em;color:var(--stamp);transform:skewX(-6deg);
+         text-shadow:0 0 5px rgba(255,111,30,.85),0 0 1px rgba(255,140,60,.9);pointer-events:none}
+
+  .home-label{position:absolute;z-index:5;font-family:var(--mono);font-size:9px;letter-spacing:.3em;
+              color:var(--mute);transform:translate(-50%,-50%);white-space:nowrap}
+  .now{position:absolute;z-index:8;transform:translate(-50%,-50%);display:flex;align-items:center;gap:9px;
+       font-family:var(--mono);font-size:10px;letter-spacing:.24em;color:var(--mute);white-space:nowrap;
+       opacity:0;transition:opacity .8s}
+  .now.in{opacity:1}
+  .now .pip{width:8px;height:8px;border-radius:50%;background:var(--stamp);
+            box-shadow:0 0 8px rgba(255,111,30,.6)}
+
+  .preview{position:fixed;z-index:50;pointer-events:none;transform:translate(-50%,-115%);
+           background:var(--paper);box-shadow:0 2px 4px rgba(32,31,27,.12),0 14px 34px rgba(32,31,27,.18);
+           opacity:0;transition:opacity .18s ease}
+  .preview.show{opacity:1}
+  .preview .photo{width:132px;height:88px}
+  .preview .cap{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--mute);
+                padding:6px 8px;white-space:nowrap}
+
+  .overlay{position:fixed;inset:0;z-index:60;background:rgba(246,245,241,.94);display:none;
+           align-items:center;justify-content:center;padding:28px}
+  .overlay.open{display:flex}
+  .post{max-width:560px;width:100%}
+  .post .photo{width:100%;height:auto;aspect-ratio:3/2}
+  .post .photo .stamp{font-size:15px;right:14px;bottom:10px}
+  .post h2{font-family:var(--serif);font-style:italic;font-weight:400;font-size:22px;margin:22px 0 6px}
+  .post .meta{font-family:var(--mono);font-size:10.5px;letter-spacing:.22em;color:var(--mute);margin-bottom:14px}
+  .post p{font-size:14.5px;line-height:1.65;max-width:52ch}
+  .post .close{margin-top:22px;border:0;background:none;cursor:pointer;font-family:var(--mono);
+               font-size:10.5px;letter-spacing:.24em;color:var(--ink);padding:8px 0;
+               border-bottom:1px solid var(--ink)}
+  .post .close:focus-visible{outline:1.5px solid var(--stamp);outline-offset:3px}
+</style>
+</head>
+<body>
+
+<div class="spacer" id="spacer"></div>
+
+<div class="stage"><div class="world" id="world"></div></div>
+
+<div class="wordmark" aria-hidden="true">
+  <svg width="34" height="16" viewBox="0 0 34 16">
+    <path d="M1 12 C 6 12, 7 4, 12 4 S 18 13, 23 11 S 28 5, 31 5" fill="none" stroke="var(--ink)" stroke-width="1.3"/>
+    <circle cx="31" cy="5" r="2.1" fill="var(--stamp)"/>
+  </svg>
+  <span class="name">on roam</span>
+</div>
+
+<div class="marker"><span class="pip"></span><span id="markerText">…</span></div>
+<div class="hint" id="hint">scroll ↓ to roam</div>
+
+<div class="controls">
+  <button id="btnFlower" class="active">flower</button>
+  <button id="btnWander">wander</button>
+  <button id="btnOverview">the roam so far</button>
+</div>
+
+<div class="compass" aria-hidden="true">
+  <svg width="52" height="52" viewBox="0 0 52 52">
+    <circle cx="26" cy="26" r="20" fill="none" stroke="var(--hairline)" stroke-width="1"/>
+    <text x="26" y="9" text-anchor="middle" class="nlab">N</text>
+    <g class="needle" id="needle">
+      <line x1="26" y1="26" x2="26" y2="12" stroke="var(--stamp)" stroke-width="1.6"/>
+      <line x1="26" y1="26" x2="26" y2="34" stroke="var(--mute)" stroke-width="1.2"/>
+    </g>
+  </svg>
+</div>
+
+<div class="preview" id="preview"></div>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true">
+  <div class="post" id="postCard"></div>
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   on roam — camera-follow prototype
+   Scroll = distance travelled along the line. The camera follows.
+   Two shapes share everything except the geometry function:
+     flower : petals out from home at true bearing, size ~ distance
+     wander : one continuous meander, trips turn to true bearing
+------------------------------------------------------------------ */
+
+const HOME_BASE='LONDON';
+const T_START=new Date('2025-01-01');
+const T_NOW=new Date('2026-07-18');
+
+const TRIPS=[
+ {place:'KYOTO',name:'sakura fortnight',start:'2025-03-24',end:'2025-04-06',bearing:33,km:9600,posts:6,
+  desc:'Two weeks chasing the cherry front north. One roll of Portra a day, most of it gone on the Philosopher’s Path before eight in the morning, before the crowds and after the light.',
+  tones:['#D8A8B8','#5A5E7B','#2E3050']},
+ {place:'LISBON',name:'azulejo week',start:'2025-06-10',end:'2025-06-17',bearing:205,km:1600,posts:4,
+  desc:'Tiles, trams, and the kind of afternoon light that makes every wall look hand-painted. Shot mostly from miradouros, waiting for someone in red to walk through the frame.',
+  tones:['#7FA8C9','#E8D9A8','#3E5C76']},
+ {place:'TAIPEI',name:'night market roll',start:'2025-09-12',end:'2025-09-22',bearing:55,km:9800,posts:7,
+  desc:'Ten days of steam, neon, and pushing film two stops. The 167MT metered the night markets better than I did.',
+  tones:['#3BA99C','#1E2A44','#E86A4A']},
+ {place:'EDINBURGH',name:'hogmanay',start:'2025-12-29',end:'2026-01-02',bearing:343,km:530,posts:3,
+  desc:'Four days of stone, moss, and torchlight. Everything came back grey-green and I wouldn’t change a frame of it.',
+  tones:['#8A9B7C','#5C6670','#2F3438']},
+ {place:'PARIS',name:'zinc rooftops',start:'2026-02-13',end:'2026-02-16',bearing:148,km:340,posts:4,
+  desc:'A long weekend of zinc skies and café windows. The city does its own colour grading in February.',
+  tones:['#9FA6AD','#D9CDBB','#4A4E55']},
+];
+
+const rad=d=>d*Math.PI/180;
+const dir=b=>({x:Math.sin(b),y:-Math.cos(b)});           // bearing → screen vec, north = up
+const days=(a,b)=>Math.round((new Date(b)-new Date(a))/86400000);
+const MONTHS=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+const fmtStamp=d=>`'${String(d.getFullYear()).slice(2)} ${d.getMonth()+1} ${d.getDate()}`;
+const fmtMY=d=>`${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+const lerp=(a,b,f)=>a+(b-a)*f;
+const angDiff=(a,b)=>{let d=(b-a)%(2*Math.PI);if(d>Math.PI)d-=2*Math.PI;if(d<-Math.PI)d+=2*Math.PI;return d};
+
+/* timeline: alternating home / trip spans with real dates */
+function timeline(){
+  const spans=[];let cursor=T_START;
+  for(const trip of TRIPS){
+    spans.push({type:'home',d0:new Date(cursor),d1:new Date(trip.start)});
+    spans.push({type:'trip',trip,d0:new Date(trip.start),d1:new Date(trip.end)});
+    cursor=new Date(trip.end);
+  }
+  spans.push({type:'home',d0:new Date(cursor),d1:T_NOW});
+  return spans;
+}
+
+/* ---------- geometry: each shape returns sampled spans ----------
+   span sample list: [{x,y}], plus span meta carried through       */
+
+function buildFlower(){
+  const spans=timeline();const out=[];
+  let prevAng=rad(200);                       // where the pen "faces" between petals
+  for(const sp of spans){
+    if(sp.type==='trip'){
+      const b=rad(sp.trip.bearing);
+      const R=62*Math.log2(sp.trip.km/40);    // petal reach ~ log distance
+      const w=0.42;                           // petal half-width (radians at base)
+      const N=170,pts=[];
+      for(let i=0;i<=N;i++){
+        const u=i/N;
+        const r=R*Math.pow(Math.sin(Math.PI*u),0.75);
+        const a=b - w*Math.cos(Math.PI*u);
+        pts.push({x:dir(a).x*r,y:dir(a).y*r});
+      }
+      out.push({...sp,pts,apex:{x:dir(b).x*R,y:dir(b).y*R},bearingRad:b,R});
+      prevAng=b+w;
+    }else{
+      /* home = a small dotted curl through the origin — pacing at home */
+      const hd=days(sp.d0,sp.d1);
+      const r=Math.min(26,Math.max(10,8+hd*0.12));
+      const c={x:dir(prevAng).x*r,y:dir(prevAng).y*r};
+      const start=Math.atan2(0-c.y,0-c.x);   // begin the curl at the origin
+      const pts=[];
+      for(let u=0;u<=1.0001;u+=0.02){
+        const a=start+2*Math.PI*u;
+        pts.push({x:c.x+Math.cos(a)*r,y:c.y+Math.sin(a)*r});
+      }
+      out.push({...sp,pts});
+    }
+  }
+  return out;
+}
+
+function buildWander(){
+  const spans=timeline();const out=[];
+  const DRIFT=rad(100);                       // resting heading between trips
+  let heading=DRIFT,pos={x:0,y:0};
+  const STEP=5,TURN=0.05;
+  for(const sp of spans){
+    const isTrip=sp.type==='trip';
+    const target=isTrip?rad(sp.trip.bearing):DRIFT;
+    const len=isTrip?Math.max(days(sp.d0,sp.d1)*26,420):Math.max(days(sp.d0,sp.d1)*3,90);
+    const n=Math.ceil(len/STEP);
+    const pts=[{...pos}];
+    for(let i=0;i<n;i++){
+      heading+=Math.max(-TURN,Math.min(TURN,angDiff(heading,target)))
+              +Math.sin((pos.x+pos.y)*0.006)*0.012;      // organic wobble
+      pos={x:pos.x+dir(heading).x*STEP,y:pos.y+dir(heading).y*STEP};
+      pts.push({...pos});
+    }
+    out.push({...sp,pts});
+  }
+  return out;
+}
+
+/* ---------- shared build: paths, arc lengths, content ---------- */
+const world=document.getElementById('world');
+const spacer=document.getElementById('spacer');
+const markerText=document.getElementById('markerText');
+const needle=document.getElementById('needle');
+const preview=document.getElementById('preview');
+const overlay=document.getElementById('overlay');
+const postCard=document.getElementById('postCard');
+const hint=document.getElementById('hint');
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const finePointer=matchMedia('(pointer: fine)').matches;
+
+let shape='flower';
+let P=[];            // flat samples {x,y,cum}
+let spanMeta=[];     // {type,d0,d1,trip,s0,s1,pathEl,len}
+let items=[];        // revealable DOM {el,s}
+let TOTAL=0,BBOX=null,overview=false;
+let cam={x:0,y:0,k:1},camT={x:0,y:0,k:1};
+
+function photoHTML(trip,dateObj){
+  const [a,b,c]=trip.tones;
+  return `<span class="photo" style="background:linear-gradient(160deg,${a} 0%,${b} 58%,${c} 100%)">
+          <span class="stamp">${fmtStamp(dateObj)}</span></span>`;
+}
+
+function build(){
+  const spans=shape==='flower'?buildFlower():buildWander();
+  world.innerHTML='';items=[];spanMeta=[];P=[];
+
+  /* flatten + normalize coords */
+  let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+  for(const sp of spans)for(const p of sp.pts){
+    minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);
+    minY=Math.min(minY,p.y);maxY=Math.max(maxY,p.y);
+  }
+  const PADW=340,ox=-minX+PADW,oy=-minY+PADW;
+  const W=maxX-minX+PADW*2,H=maxY-minY+PADW*2;
+  BBOX={x:PADW*0.35,y:PADW*0.35,w:W-PADW*0.7,h:H-PADW*0.7};
+
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('width',W);svg.setAttribute('height',H);
+  world.appendChild(svg);
+
+  let cum=0,firstPt=null;
+  for(const sp of spans){
+    const pts=sp.pts.map(p=>({x:p.x+ox,y:p.y+oy}));
+    const s0=cum;
+    let d=`M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+    for(let i=1;i<pts.length;i++){
+      cum+=Math.hypot(pts[i].x-pts[i-1].x,pts[i].y-pts[i-1].y);
+      d+=` L ${pts[i].x.toFixed(1)} ${pts[i].y.toFixed(1)}`;
+      P.push({x:pts[i].x,y:pts[i].y,cum});
+    }
+    if(!firstPt){firstPt=pts[0];P.unshift({x:pts[0].x,y:pts[0].y,cum:0});}
+    const path=document.createElementNS(svg.namespaceURI,'path');
+    path.setAttribute('d',d);
+    const len=cum-s0;
+    if(sp.type==='trip'){
+      path.setAttribute('class','seg-solid');
+      if(!reduced){path.style.strokeDasharray=len;path.style.strokeDashoffset=len;}
+    }else{
+      path.setAttribute('class','seg-dash'+(reduced?' in':''));
+    }
+    svg.appendChild(path);
+    spanMeta.push({...sp,pts,s0,s1:cum,pathEl:path,len});
+  }
+  TOTAL=cum;
+  spacer.style.height=(TOTAL+innerHeight)+'px';
+
+  /* home label at the origin */
+  const hl=document.createElement('div');hl.className='home-label';
+  hl.textContent=HOME_BASE;
+  hl.style.left=(0+ox)+'px';hl.style.top=(0+oy+(shape==='flower'?44:-26))+'px';
+  world.appendChild(hl);
+
+  /* trip content */
+  for(const m of spanMeta){
+    if(m.type!=='trip')continue;
+    const trip=m.trip,startDate=m.d0;
+    const mid=samplePt((m.s0+m.s1)/2);
+    const tan=tangent((m.s0+m.s1)/2);
+    let nx=-tan.y,ny=tan.x;                             // normal
+    if(shape==='flower'){                               // point outward from origin
+      const vx=mid.x-(0+ox),vy=mid.y-(0+oy);
+      if(nx*vx+ny*vy<0){nx=-nx;ny=-ny;}
+    }
+    /* keyframe */
+    const kf=document.createElement('button');kf.className='keyframe';
+    kf.style.setProperty('--tilt',((Math.random()*2.4)-1.2).toFixed(1)+'deg');
+    kf.innerHTML=photoHTML(trip,startDate);
+    const kx=mid.x+nx*112,ky=mid.y+ny*112;
+    kf.style.left=kx+'px';kf.style.top=ky+'px';
+    kf.setAttribute('aria-label',`Open ${trip.place} cover photo`);
+    kf.addEventListener('click',()=>openPost(trip,startDate,trip.desc,trip.name));
+    world.appendChild(kf);items.push({el:kf,s:(m.s0+m.s1)/2});
+    /* label sits under the keyframe */
+    const lbl=document.createElement('button');lbl.className='place';
+    lbl.innerHTML=`${trip.place} <span class="yr">· ${fmtMY(startDate)}</span>`;
+    lbl.style.left=kx+'px';lbl.style.top=(ky+74)+'px';
+    lbl.addEventListener('click',()=>{jumpTo(m.s0);});
+    world.appendChild(lbl);items.push({el:lbl,s:(m.s0+m.s1)/2});
+    /* dots for remaining posts */
+    const n=trip.posts-1;
+    for(let i=0;i<n;i++){
+      const s=m.s0+m.len*(0.30+0.4*(i/Math.max(n-1,1)));
+      const p=samplePt(s),t=tangent(s);
+      let dnx=-t.y,dny=t.x;
+      if(shape==='flower'){const vx=p.x-(0+ox),vy=p.y-(0+oy);
+        if(dnx*vx+dny*vy<0){dnx=-dnx;dny=-dny;}}
+      const dDate=new Date(+startDate+(i+1)*86400000*
+        Math.max(1,Math.floor(days(trip.start,trip.end)/trip.posts)));
+      const dot=document.createElement('button');dot.className='dot';dot.innerHTML='<i></i>';
+      dot.style.left=(p.x+dnx*12)+'px';dot.style.top=(p.y+dny*12)+'px';
+      dot.setAttribute('aria-label',`Open post ${i+2} from ${trip.place}`);
+      const cap=`roll ${i+2} · ${trip.place.toLowerCase()}`;
+      if(finePointer){
+        dot.addEventListener('mouseenter',()=>showPreview(dot,trip,dDate,cap));
+        dot.addEventListener('mouseleave',hidePreview);
+      }
+      dot.addEventListener('click',()=>{hidePreview();openPost(trip,dDate,trip.desc,cap);});
+      world.appendChild(dot);items.push({el:dot,s});
+    }
+  }
+
+  /* still roaming */
+  const endP=P[P.length-1];
+  const now=document.createElement('div');now.className='now';
+  now.innerHTML=`<span class="pip"></span><span>STILL ROAMING</span>`;
+  now.style.left=endP.x+'px';now.style.top=(endP.y-24)+'px';
+  world.appendChild(now);items.push({el:now,s:TOTAL-10});
+
+  if(reduced)for(const it of items)it.el.classList.add('in');
+  scrollTo(0,0);
+  const p0=samplePt(0);
+  cam={x:p0.x,y:p0.y,k:1};
+  update(true);
+}
+
+/* sample point / tangent at arc length s (binary search) */
+function idxAt(s){
+  let lo=0,hi=P.length-1;
+  while(lo<hi){const mid=(lo+hi)>>1;(P[mid].cum<s)?lo=mid+1:hi=mid;}
+  return Math.max(1,lo);
+}
+function samplePt(s){
+  s=Math.max(0,Math.min(TOTAL,s));
+  const i=idxAt(s),a=P[i-1],b=P[i];
+  const f=(s-a.cum)/Math.max(b.cum-a.cum,0.0001);
+  return {x:lerp(a.x,b.x,f),y:lerp(a.y,b.y,f)};
+}
+function tangent(s){
+  const i=idxAt(s),a=P[i-1],b=P[i];
+  const l=Math.hypot(b.x-a.x,b.y-a.y)||1;
+  return {x:(b.x-a.x)/l,y:(b.y-a.y)/l};
+}
+
+/* ---------- camera + per-frame state ---------- */
+let curS=0;
+function update(instant){
+  const s=Math.max(0,Math.min(TOTAL,scrollY));
+  curS=s;
+  if(s>60)hint.classList.add('gone');
+
+  /* segment draw states */
+  for(const m of spanMeta){
+    if(m.type==='trip'&&!reduced){
+      const off=s>=m.s1?0:(s<=m.s0?m.len:m.len-(s-m.s0));
+      m.pathEl.style.strokeDashoffset=off;
+    }else if(m.type==='home'&&s>=m.s0){
+      m.pathEl.classList.add('in');
+    }
+  }
+  for(const it of items)if(it.s<=s+120)it.el.classList.add('in');
+
+  /* marker */
+  let label=HOME_BASE,date=T_NOW;
+  for(const m of spanMeta){
+    if(s>=m.s0&&s<=m.s1){
+      if(m.type==='trip'){label=m.trip.place;date=m.d0;}
+      else{const f=(s-m.s0)/Math.max(m.s1-m.s0,1);
+           date=new Date(+m.d0+f*(+m.d1-+m.d0));}
+      break;
+    }
+  }
+  markerText.textContent=`${fmtMY(date)} · ${label}`;
+
+  /* compass follows travel heading */
+  const t=tangent(s);
+  needle.setAttribute('transform',`rotate(${Math.atan2(t.y,t.x)*180/Math.PI+90} 26 26)`);
+
+  /* camera target */
+  if(overview){
+    const k=Math.min(innerWidth/BBOX.w,innerHeight/BBOX.h)*0.82;
+    camT={x:BBOX.x+BBOX.w/2,y:BBOX.y+BBOX.h/2,k};
+  }else{
+    const p=samplePt(s);
+    camT={x:p.x,y:p.y,k:1};
+  }
+  if(instant){cam={...camT};}
+}
+
+function frame(){
+  const f=reduced?1:0.11;
+  cam.x=lerp(cam.x,camT.x,f);cam.y=lerp(cam.y,camT.y,f);cam.k=lerp(cam.k,camT.k,f);
+  const cx=innerWidth/2,cy=innerHeight/2;
+  world.style.transform=
+    `translate(${(cx-cam.k*cam.x).toFixed(2)}px,${(cy-cam.k*cam.y).toFixed(2)}px) scale(${cam.k.toFixed(4)})`;
+  requestAnimationFrame(frame);
+}
+
+addEventListener('scroll',()=>update(false),{passive:true});
+addEventListener('resize',()=>update(false));
+
+/* ---------- controls ---------- */
+const btnFlower=document.getElementById('btnFlower');
+const btnWander=document.getElementById('btnWander');
+const btnOverview=document.getElementById('btnOverview');
+function setShape(sh){
+  shape=sh;overview=false;
+  btnFlower.classList.toggle('active',sh==='flower');
+  btnWander.classList.toggle('active',sh==='wander');
+  btnOverview.classList.remove('active');
+  build();
+}
+btnFlower.addEventListener('click',()=>setShape('flower'));
+btnWander.addEventListener('click',()=>setShape('wander'));
+btnOverview.addEventListener('click',()=>{
+  overview=!overview;btnOverview.classList.toggle('active',overview);
+  if(overview)for(const it of items)it.el.classList.add('in');
+  update(false);
+});
+function jumpTo(s){
+  overview=false;btnOverview.classList.remove('active');
+  scrollTo({top:s,behavior:reduced?'auto':'smooth'});
+}
+
+/* ---------- preview + modal ---------- */
+function showPreview(dot,trip,dateObj,cap){
+  preview.innerHTML=photoHTML(trip,dateObj)+`<div class="cap">${cap}</div>`;
+  const r=dot.getBoundingClientRect();
+  preview.style.left=(r.left+r.width/2)+'px';
+  preview.style.top=r.top+'px';
+  preview.classList.add('show');
+}
+function hidePreview(){preview.classList.remove('show')}
+function openPost(trip,dateObj,desc,title){
+  postCard.innerHTML=photoHTML(trip,dateObj)+
+    `<h2>${title}</h2>
+     <div class="meta">${trip.place} · ${dateObj.getDate()} ${MONTHS[dateObj.getMonth()]} ${dateObj.getFullYear()}</div>
+     <p>${desc}</p>
+     <button class="close" id="closeBtn">back to the route</button>`;
+  overlay.classList.add('open');
+  const c=document.getElementById('closeBtn');
+  c.focus();c.addEventListener('click',closePost);
+}
+function closePost(){overlay.classList.remove('open')}
+overlay.addEventListener('click',e=>{if(e.target===overlay)closePost()});
+addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    if(overlay.classList.contains('open'))closePost();
+    else if(overview){overview=false;btnOverview.classList.remove('active');update(false);}
+  }
+});
+
+/* ---------- boot ---------- */
+build();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+---
+import Archive from '../../components/Archive.astro';
+import Layout from '../../layouts/Layout.astro';
+import { loadContent } from '../../lib/content';
+
+export async function getStaticPaths() {
+  return loadContent().posts.map((p) => ({ params: { slug: p.slug }, props: { post: p } }));
+}
+
+const { post } = Astro.props;
+---
+
+<Layout title={`${post.title} — on roam`} description={post.description}>
+  <Archive openSlug={post.slug} />
+</Layout>

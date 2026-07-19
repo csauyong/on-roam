@@ -1,0 +1,45 @@
+---
+import { fmtMY } from '../lib/format';
+import type { World } from '../lib/world';
+
+/* Non-animated, pannable overview of the line: plain SVG, native scroll. */
+
+interface Props {
+  world: World;
+  home: string;
+  origin: string;
+  scale?: number;
+}
+const { world, home, origin, scale = 0.45 } = Astro.props;
+
+const w = Math.round(world.bbox.w * scale);
+const h = Math.round(world.bbox.h * scale);
+const fs = Math.round(11 / scale); // text set in world units, sized to read at this scale
+---
+
+<div class="ov-pan" tabindex="0" role="img" aria-label="A map of the whole roam, one continuous line">
+  <svg
+    viewBox={`${world.bbox.x} ${world.bbox.y} ${world.bbox.w} ${world.bbox.h}`}
+    width={w}
+    height={h}
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    {world.spans.map((sp) => (
+      <path d={sp.d} class={sp.type === 'home' ? 'seg-dash in' : 'seg-solid'} />
+    ))}
+    {world.dots.map((d) => (
+      <circle cx={d.x} cy={d.y} r={5} fill="var(--paper)" stroke="var(--ink)" stroke-width="2" />
+    ))}
+    <text x={world.origin.x} y={world.origin.y + 26} text-anchor="middle" class="ov-home" font-size={fs - 4}>
+      {origin}
+    </text>
+    <text x={world.home.x} y={world.home.y - 26} text-anchor="middle" class="ov-home" font-size={fs - 4}>
+      {home}
+    </text>
+    {world.labels.map((l) => (
+      <text x={l.x} y={l.y} text-anchor="middle" class="ov-label" font-size={fs}>
+        {l.place} · {fmtMY(new Date(l.d0))}
+      </text>
+    ))}
+  </svg>
+</div>

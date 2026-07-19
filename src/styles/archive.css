@@ -1,0 +1,160 @@
+/* Ported from on-roam-v2-flower-vs-wander.html — wander shape only. */
+
+:root {
+  --paper: #f6f5f1;
+  --ink: #201f1b;
+  --mute: #a29d91;
+  --hairline: #dcd9cf;
+  --stamp: #ff6f1e;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --serif: Georgia, 'Times New Roman', serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: system-ui, -apple-system, sans-serif; }
+.spacer { width: 1px; }
+
+/* ---------- fixed stage ---------- */
+.stage { position: fixed; inset: 0; overflow: hidden; }
+.world { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; }
+.world svg { position: absolute; top: 0; left: 0; overflow: visible; }
+
+.seg-solid { fill: none; stroke: var(--ink); stroke-width: 1.4; }
+.seg-dash { fill: none; stroke: var(--mute); stroke-width: 1.2; stroke-dasharray: 2 7; stroke-linecap: round;
+            opacity: 0; transition: opacity 0.6s ease; }
+.seg-dash.in { opacity: 1; }
+
+/* ---------- chrome ---------- */
+.wordmark { position: fixed; top: 22px; left: 26px; z-index: 40; display: flex; align-items: center; gap: 10px;
+            user-select: none; pointer-events: none; }
+.wordmark .name { font-family: var(--mono); font-size: 13px; letter-spacing: 0.28em; }
+.marker { position: fixed; top: 24px; right: 26px; z-index: 40; font-family: var(--mono); font-size: 11px;
+          letter-spacing: 0.18em; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.marker .pip { width: 7px; height: 7px; border-radius: 50%; background: var(--stamp);
+               box-shadow: 0 0 6px rgba(255, 111, 30, 0.55); }
+.hint { position: fixed; bottom: 22px; left: 26px; z-index: 40; font-family: var(--mono); font-size: 11px;
+        letter-spacing: 0.2em; color: var(--mute); transition: opacity 0.8s; }
+.hint.gone { opacity: 0; }
+
+.controls { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 40;
+            display: flex; gap: 22px; align-items: center; }
+.controls button { border: 0; background: none; cursor: pointer; font-family: var(--mono);
+                   font-size: 11px; letter-spacing: 0.24em; color: var(--mute); padding: 6px 2px;
+                   border-bottom: 1px solid transparent; }
+.controls button.active { color: var(--ink); border-bottom-color: var(--stamp); }
+.controls button:focus-visible { outline: 1.5px solid var(--stamp); outline-offset: 3px; }
+
+.compass { position: fixed; bottom: 16px; right: 22px; z-index: 40; width: 52px; height: 52px; }
+.compass svg { display: block; }
+.compass .needle { transform-origin: 26px 26px; transition: none; }
+.compass .nlab { font-family: var(--mono); font-size: 8px; letter-spacing: 0.1em; fill: var(--mute); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .marker .pip, .now .pip { animation: pulse 2.6s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.5); } }
+}
+
+/* ---------- content on the line ---------- */
+.place { position: absolute; z-index: 5; font-family: var(--mono); font-size: 10px; letter-spacing: 0.26em;
+         transform: translate(-50%, -50%); white-space: nowrap; opacity: 0; transition: opacity 0.7s ease;
+         background: none; border: 0; color: var(--ink); cursor: pointer; padding: 4px 6px; }
+.place .yr { color: var(--mute); letter-spacing: 0.14em; }
+.place.in { opacity: 1; }
+.place:focus-visible { outline: 1.5px solid var(--stamp); outline-offset: 2px; }
+
+.dot { position: absolute; z-index: 6; width: 22px; height: 22px; border: 0; background: none; cursor: pointer;
+       transform: translate(-50%, -50%); opacity: 0; transition: opacity 0.7s ease; display: grid; place-items: center; }
+.dot.in { opacity: 1; }
+.dot i { width: 6px; height: 6px; border-radius: 50%; background: var(--paper); border: 1.4px solid var(--ink);
+         transition: transform 0.18s ease, background 0.18s ease; }
+.dot:hover i, .dot:focus-visible i { transform: scale(1.6); background: var(--ink); }
+.dot:focus-visible { outline: 1.5px solid var(--stamp); outline-offset: 2px; border-radius: 50%; }
+
+.keyframe { position: absolute; z-index: 7; border: 0; padding: 0; cursor: pointer; background: var(--paper);
+            display: block; text-decoration: none;
+            transform: translate(-50%, -50%) rotate(var(--tilt, 0deg));
+            box-shadow: 0 1px 2px rgba(32, 31, 27, 0.1), 0 8px 22px rgba(32, 31, 27, 0.1);
+            opacity: 0; transition: opacity 0.8s ease, box-shadow 0.25s ease, scale 0.25s ease; }
+.keyframe.in { opacity: 1; }
+.keyframe:hover, .keyframe:focus-visible { scale: 1.035;
+            box-shadow: 0 2px 4px rgba(32, 31, 27, 0.12), 0 14px 34px rgba(32, 31, 27, 0.16); }
+.keyframe:focus-visible { outline: 1.5px solid var(--stamp); outline-offset: 3px; }
+
+.photo { position: relative; overflow: hidden; display: block; }
+.photo img { display: block; width: 100%; height: auto; }
+.keyframe .photo { width: 158px; }
+.photo::after { content: ''; position: absolute; inset: 0;
+  background:
+    radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(20, 18, 14, 0.28)),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/><feColorMatrix type='saturate' values='0'/></filter><rect width='120' height='120' filter='url(%23n)' opacity='.14'/></svg>");
+  mix-blend-mode: multiply; pointer-events: none; }
+.stamp { position: absolute; right: 8px; bottom: 6px; z-index: 2; font-family: var(--mono); font-size: 11px;
+         letter-spacing: 0.08em; color: var(--stamp); transform: skewX(-6deg);
+         text-shadow: 0 0 5px rgba(255, 111, 30, 0.85), 0 0 1px rgba(255, 140, 60, 0.9); pointer-events: none; }
+
+/* reflection posts carry their short title on the photo itself.
+   Small photos (keyframe, preview) set it top-left, clear of the datestamp;
+   the full-size overlay photo sets it bottom-left. */
+.ptitle { position: absolute; left: 10px; top: 6px; z-index: 2; font-family: var(--serif);
+          font-style: italic; color: var(--paper); font-size: 12.5px; letter-spacing: 0.02em;
+          max-width: 85%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+          text-shadow: 0 1px 6px rgba(20, 18, 14, 0.8), 0 0 2px rgba(20, 18, 14, 0.55);
+          pointer-events: none; }
+
+.home-label { position: absolute; z-index: 5; font-family: var(--mono); font-size: 9px; letter-spacing: 0.3em;
+              color: var(--mute); transform: translate(-50%, -50%); white-space: nowrap; }
+.now { position: absolute; z-index: 8; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 9px;
+       font-family: var(--mono); font-size: 10px; letter-spacing: 0.24em; color: var(--mute); white-space: nowrap;
+       opacity: 0; transition: opacity 0.8s; }
+.now.in { opacity: 1; }
+.now .pip { width: 8px; height: 8px; border-radius: 50%; background: var(--stamp);
+            box-shadow: 0 0 8px rgba(255, 111, 30, 0.6); }
+
+.preview { position: fixed; z-index: 50; pointer-events: none; transform: translate(-50%, -115%);
+           background: var(--paper); box-shadow: 0 2px 4px rgba(32, 31, 27, 0.12), 0 14px 34px rgba(32, 31, 27, 0.18);
+           opacity: 0; transition: opacity 0.18s ease; }
+.preview.show { opacity: 1; }
+.preview .photo { width: 132px; }
+.preview .cap { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.14em; color: var(--mute);
+                padding: 6px 8px; white-space: nowrap; }
+
+.overlay { position: fixed; inset: 0; z-index: 60; background: rgba(246, 245, 241, 0.94); display: none;
+           align-items: center; justify-content: center; padding: 28px; overflow-y: auto; }
+.overlay.open { display: flex; }
+.post { max-width: 560px; width: 100%; margin: auto; }
+.post .photo { width: fit-content; max-width: 100%; }
+.post .photo img { max-height: 62vh; width: auto; max-width: 100%; }
+.post .photo .stamp { font-size: 15px; right: 14px; bottom: 10px; }
+.post .photo .ptitle { font-size: 19px; left: 14px; top: auto; bottom: 10px; max-width: 62%; }
+.post h2 { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 22px; margin: 22px 0 6px; }
+.post .meta { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.22em; color: var(--mute); margin-bottom: 14px; }
+.post p { font-size: 14.5px; line-height: 1.65; max-width: 52ch; }
+.post p + p { margin-top: 0.9em; }
+/* long-form reflections read in the serif, title lives on the photo */
+.post.reflection .meta, .reflection .meta { margin-top: 20px; }
+.post.reflection p, .reflection p { font-family: var(--serif); font-size: 15.5px; line-height: 1.7; }
+.post .close { margin-top: 22px; border: 0; background: none; cursor: pointer; font-family: var(--mono);
+               font-size: 10.5px; letter-spacing: 0.24em; color: var(--ink); padding: 8px 0;
+               border-bottom: 1px solid var(--ink); }
+.post .close:focus-visible { outline: 1.5px solid var(--stamp); outline-offset: 3px; }
+
+/* ---------- static fallback (reduced motion / no JS) ---------- */
+.fallback { display: none; max-width: 720px; margin: 0 auto; padding: 96px 26px 64px; }
+.fallback h1 { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 22px; margin-bottom: 18px; }
+.fallback .lede { font-family: var(--mono); font-size: 11px; letter-spacing: 0.18em; color: var(--mute);
+                  margin-bottom: 28px; }
+.fallback a { color: var(--ink); }
+.fallback a:focus-visible { outline: 1.5px solid var(--stamp); outline-offset: 2px; }
+.ov-pan { overflow: auto; border: 1px solid var(--hairline); margin-bottom: 32px; }
+.ov-pan svg { display: block; }
+.ov-label { font-family: var(--mono); font-size: 11px; letter-spacing: 0.2em; fill: var(--ink); }
+.ov-home { font-family: var(--mono); font-size: 9px; letter-spacing: 0.3em; fill: var(--mute); }
+.fallback article { margin-bottom: 40px; }
+.fallback article h2 { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 20px; margin: 18px 0 6px; }
+.fallback article .meta { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.22em; color: var(--mute);
+                          margin-bottom: 12px; }
+.fallback article p { font-size: 14.5px; line-height: 1.65; max-width: 52ch; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stage, .marker, .hint, .controls, .compass, .preview, .overlay, .spacer { display: none !important; }
+  .fallback { display: block; }
+}
