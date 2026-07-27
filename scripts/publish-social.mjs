@@ -149,9 +149,15 @@ async function postInstagram(coverUrl, text) {
 }
 
 async function postThreads(coverUrl, text) {
-  const id = process.env.THREADS_USER_ID;
   const token = process.env.THREADS_ACCESS_TOKEN;
-  if (!id || !token) return { skipped: 'THREADS_USER_ID / THREADS_ACCESS_TOKEN not set' };
+  if (!token) return { skipped: 'THREADS_ACCESS_TOKEN not set' };
+
+  /* Threads never shows a user ID in the app dashboard — it only exists through
+     the API, so ask for it. THREADS_USER_ID overrides if you'd rather pin it. */
+  const id =
+    process.env.THREADS_USER_ID ||
+    (await get(`${TH_API}/me?fields=id&access_token=${token}`)).id;
+  if (!id) throw new Error('Threads did not return a user id for this token');
 
   const container = await api(`${TH_API}/${id}/threads`, {
     media_type: 'IMAGE',

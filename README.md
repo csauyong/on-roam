@@ -77,9 +77,10 @@ as the site — reflections get the centred title instead), commits and deploys 
 so the image has a public URL, then posts to Instagram and Threads and comments
 the permalinks back. Nothing is posted automatically on creation.
 
-Secrets: `IG_USER_ID`, `IG_ACCESS_TOKEN`, `THREADS_USER_ID`,
-`THREADS_ACCESS_TOKEN`. Without them the run still builds and deploys the cover
-and reports each platform as skipped.
+Secrets: `IG_USER_ID`, `IG_ACCESS_TOKEN`, `THREADS_ACCESS_TOKEN`. Without them
+the run still builds and deploys the cover and reports each platform as skipped.
+Threads shows no user ID in the app dashboard, so the publisher asks the API for
+it; set the optional `THREADS_USER_ID` secret only to pin it.
 
 Instagram publishes through the **Instagram Login** path — host
 `graph.instagram.com`, an Instagram User token, and the app permissions
