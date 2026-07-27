@@ -16,7 +16,10 @@ concurrency:
 
 jobs:
   cover:
-    if: github.event.label.name == 'publish'
+    # the label has to have been added by the owner, not just exist
+    if: >-
+      github.event.label.name == 'publish' &&
+      github.event.sender.login == github.repository_owner
     runs-on: ubuntu-latest
     outputs:
       ok: ${{ steps.cover.outputs.ok }}

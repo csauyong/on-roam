@@ -95,10 +95,12 @@ body { background: var(--paper); color: var(--ink); font-family: system-ui, -app
          text-shadow: 0 0 5px rgba(255, 111, 30, 0.85), 0 0 1px rgba(255, 140, 60, 0.9); pointer-events: none; }
 .stamp .loc { letter-spacing: 0.2em; }
 
-/* Long posts (reflections): the title alone, centred on the photo — no stamp. */
+/* Long posts (reflections): the title alone, centred on the photo — no stamp,
+   and set lower case whatever the metadata says. */
 .ptitle { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2;
           width: 78%; text-align: center; text-wrap: balance; font-family: var(--serif);
-          font-style: italic; color: var(--paper); font-size: 12px; line-height: 1.35; letter-spacing: 0.02em;
+          font-style: italic; text-transform: lowercase;
+          color: var(--paper); font-size: 12px; line-height: 1.35; letter-spacing: 0.02em;
           text-shadow: 0 1px 6px rgba(20, 18, 14, 0.8), 0 0 2px rgba(20, 18, 14, 0.55);
           pointer-events: none; }
 

@@ -61,6 +61,15 @@ A blank-line-separated description makes it a reflection. A post within
 `TRIP_GAP_DAYS` of an existing trip at the same place joins that trip; the
 generated trip `name` is a placeholder worth editing by hand.
 
+Posts can arrive in any order. The line is rebuilt from dates on every build, so
+a photo backdated by years slots into its true position and the stretch after it
+shifts along; `/p/<slug>` URLs are stable through that. The one thing refused is
+a genuine conflict — a new trip whose days overlap an existing trip somewhere
+else — which fails before anything is written, with both trips named.
+
+Only the repo owner can drive either workflow: `post` checks the issue's author
+and `publish` checks who added the label.
+
 **Social.** Add the `publish` label to the closed issue.
 [publish.yml](.github/workflows/publish.yml) bakes the datestamp into
 `public/social/<slug>.jpg` with sharp (max 1440px long edge, same stamp styling

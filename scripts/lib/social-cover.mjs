@@ -84,7 +84,9 @@ function stampSvg(W, H, place, date) {
 </svg>`;
 }
 
-function titleSvg(W, H, title) {
+function titleSvg(W, H, rawTitle) {
+  /* set lower case, like .ptitle on the site */
+  const title = rawTitle.toLowerCase();
   const size = W * R.titleSize;
   const maxChars = Math.max(8, Math.round((W * R.titleWidth) / (size * 0.46)));
   const lines = wrap(title, maxChars);

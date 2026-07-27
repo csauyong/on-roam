@@ -15,7 +15,12 @@ concurrency:
 
 jobs:
   ingest:
-    if: contains(github.event.issue.labels.*.name, 'post')
+    # only the repo owner writes content — a private repo already limits who can
+    # open an issue, but this is the check that actually matters if it ever
+    # goes public
+    if: >-
+      contains(github.event.issue.labels.*.name, 'post') &&
+      github.event.issue.user.login == github.repository_owner
     runs-on: ubuntu-latest
     outputs:
       ok: ${{ steps.ingest.outputs.ok }}
