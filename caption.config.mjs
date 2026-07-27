@@ -1,13 +1,23 @@
 /* The single source for social captions — used by the issue comment (Phase 2)
-   and by the Instagram / Threads posts (Phase 3). Edit freely. */
+   and by the Instagram / Threads posts (Phase 3). Edit freely.
 
-export const HASHTAGS = '#onroam #filmdiary #travelog';
+   The caption reads as a log entry, not a blurb: where and when stated plainly
+   first, then the title, then the description on a line of its own. No link
+   (the site is the archive; the post is the post) and no hashtags.
 
-/* Appended to every caption. {url} is the post's live URL. */
-export const FOOTER = `\n\n{url}\n${HASHTAGS}`;
+     ROAM LOG · PARIS
+     48.86°N 2.35°E — 13 February 2026
 
-/* "{title} — {place}, {date-long}. {description}" plus the footer. */
-export const TEMPLATE = '{title} — {place}, {date-long}. {description}' + FOOTER;
+     Zinc rooftops at six
+
+     The light came down the chimney pots and stayed there. */
+
+/* Placeholders: {place} {dateline} {title} {description} */
+export const TEMPLATE = 'ROAM LOG · {place}\n{dateline}\n\n{title}\n\n{description}';
+
+/* Coordinates + date. A place with no geocode yet falls back to the date
+   alone, so the second line never dangles a stray dash. */
+export const DATELINE = '{coords} — {date-long}';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -20,21 +30,27 @@ export function dateLong(isoDate) {
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
-/**
- * @param {{title:string, place:string, date:string, description:string}} post
- * @param {string} url  the post's live URL
- */
-export function caption(post, url) {
-  return TEMPLATE.replace('{title}', post.title)
-    .replace('{place}', titleCase(post.place))
-    .replace('{date-long}', dateLong(post.date))
-    .replace('{description}', post.description.trim())
-    .replace('{url}', url);
+/* { lat: 48.8566, lng: 2.3522 } → 48.86°N 2.35°E */
+export function coords(place) {
+  const { lat, lng } = place ?? {};
+  if (typeof lat !== 'number' || typeof lng !== 'number') return '';
+  const deg = (v, pos, neg) => `${Math.abs(v).toFixed(2)}°${v < 0 ? neg : pos}`;
+  return `${deg(lat, 'N', 'S')} ${deg(lng, 'E', 'W')}`;
 }
 
-/* PARIS → Paris, HONG KONG → Hong Kong */
-export function titleCase(s) {
-  return s
-    .toLowerCase()
-    .replace(/(^|[\s-])(\p{L})/gu, (_, sep, c) => sep + c.toUpperCase());
+/**
+ * @param {{title:string, place:string, date:string, description:string}} post
+ * @param {{lat:number, lng:number}} [location]  this place's content/locations.json entry
+ */
+export function caption(post, location) {
+  const c = coords(location);
+  const dateline = c
+    ? DATELINE.replace('{coords}', c).replace('{date-long}', dateLong(post.date))
+    : dateLong(post.date);
+
+  return TEMPLATE.replace('{place}', post.place.toUpperCase())
+    .replace('{dateline}', dateline)
+    .replace('{title}', post.title)
+    .replace('{description}', post.description.trim())
+    .trimEnd();
 }

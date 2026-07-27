@@ -16,7 +16,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { caption as buildCaption } from '../caption.config.mjs';
-import { POSTS, postUrl, readJSON } from './lib/content.mjs';
+import { POSTS, locationsPath, postUrl, readJSON } from './lib/content.mjs';
 import { buildSocialCover } from './lib/social-cover.mjs';
 
 const MODE = process.argv.includes('--cover') ? 'cover' : 'post';
@@ -181,7 +181,8 @@ async function publish() {
   const { slug, meta } = findPost();
   const url = postUrl(slug, process.env.SITE_URL, process.env.BASE_PATH);
   const coverUrl = socialUrl(slug);
-  const text = buildCaption(meta, url);
+  /* the caption carries no link — `url` is still reported back to the issue */
+  const text = buildCaption(meta, readJSON(locationsPath())[meta.place]);
 
   await waitForCover(coverUrl);
 

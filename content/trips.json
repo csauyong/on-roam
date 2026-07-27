@@ -1,27 +1,6 @@
 [
   {
-    "id": "kyoto-2025",
-    "place": "KYOTO",
-    "name": "sakura fortnight",
-    "start": "2025-03-24",
-    "end": "2025-04-06"
-  },
-  {
-    "id": "lisbon-2025",
-    "place": "LISBON",
-    "name": "azulejo week",
-    "start": "2025-06-10",
-    "end": "2025-06-17"
-  },
-  {
     "id": "paris-2026",
-    "place": "PARIS",
-    "name": "zinc rooftops",
-    "start": "2026-02-13",
-    "end": "2026-02-16"
-  },
-  {
-    "id": "paris-2026-2",
     "place": "PARIS",
     "name": "paris",
     "start": "2026-07-19",

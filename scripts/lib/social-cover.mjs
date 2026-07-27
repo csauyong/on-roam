@@ -18,6 +18,25 @@ export const MAX_EDGE = 1440;
 const STAMP = '#FF6F1E';
 const PAPER = '#F6F5F1';
 
+/* A whisper of the site's orange over the whole frame, plus film grain, so a
+   cover sitting in a feed reads in the same colour as the archive.
+
+   Two opaque layers, not one translucent one: libvips premultiplies before it
+   blends, so a 15%-alpha orange under `soft-light` or `multiply` behaves like
+   an almost-black orange and just crushes the picture. Mixing the orange into
+   white and into black instead, and compositing those at full alpha, gives the
+   real thing — `lift` warms the shadows the way a film print does, `wash`
+   pulls the highlights towards the site's paper. Both are fractions of the way
+   from black / white to --stamp; past ~0.2 either starts to read as a filter. */
+const TINT = { lift: 0.07, wash: 0.12 };
+
+/* Grain is generated at 1/`scale` and scaled up: per-pixel noise is exactly
+   what the JPEG encoder throws away, so it has to be coarser than a pixel to
+   survive. `sigma` is the spread of the gaussian, `opacity` how much of it
+   lands. The noise is unseeded, so rebuilding a cover gives a different file —
+   bake each one once. */
+const GRAIN = { opacity: 0.1, sigma: 26, scale: 2 };
+
 /* .post .photo .stamp on a 560px-wide photo */
 const R = {
   size: 14 / 560,
@@ -108,8 +127,7 @@ function titleSvg(W, H, rawTitle) {
 </svg>`;
 }
 
-/* the site's .photo::after vignette (radial darkening; the film grain layer is
-   left off — it does not survive JPEG at this size) */
+/* the site's .photo::after vignette (radial darkening) */
 function vignetteSvg(W, H) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
   <defs><radialGradient id="v" cx="50%" cy="45%" r="72%">
@@ -118,6 +136,39 @@ function vignetteSvg(W, H) {
   </radialGradient></defs>
   <rect width="${W}" height="${H}" fill="url(#v)"/>
 </svg>`;
+}
+
+/* `t` of the way from `from` towards --stamp, as a hex colour */
+function towardsStamp(from, t) {
+  const to = [1, 3, 5].map((i) => parseInt(STAMP.slice(i, i + 2), 16));
+  return `#${from.map((c, i) => Math.round(c + (to[i] - c) * t).toString(16).padStart(2, '0')).join('')}`;
+}
+
+function fillSvg(W, H, color) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+  <rect width="${W}" height="${H}" fill="${color}"/>
+</svg>`;
+}
+
+/* Monochrome gaussian noise, ready to composite. */
+async function grainPng(W, H) {
+  const w = Math.max(1, Math.round(W / GRAIN.scale));
+  const h = Math.max(1, Math.round(H / GRAIN.scale));
+  return sharp({
+    create: {
+      width: w,
+      height: h,
+      channels: 3,
+      background: { r: 128, g: 128, b: 128 },
+      noise: { type: 'gaussian', mean: 128, sigma: GRAIN.sigma },
+    },
+  })
+    .greyscale()
+    .toColourspace('srgb')
+    .resize(W, H)
+    .ensureAlpha(GRAIN.opacity)
+    .png()
+    .toBuffer();
 }
 
 /**
@@ -138,8 +189,13 @@ export async function buildSocialCover(src, out, meta) {
   fs.mkdirSync(path.dirname(out), { recursive: true });
   await img
     .resize(W, H, { fit: 'inside' })
+    /* vignette, then colour, then grain, then the type — the stamp stays crisp
+       on top rather than sitting under the noise */
     .composite([
       { input: Buffer.from(vignetteSvg(W, H)), blend: 'multiply' },
+      { input: Buffer.from(fillSvg(W, H, towardsStamp([0, 0, 0], TINT.lift))), blend: 'screen' },
+      { input: Buffer.from(fillSvg(W, H, towardsStamp([255, 255, 255], TINT.wash))), blend: 'multiply' },
+      { input: await grainPng(W, H), blend: 'overlay' },
       { input: Buffer.from(overlay) },
     ])
     .jpeg({ quality: 88, chromaSubsampling: '4:4:4' })

@@ -103,7 +103,7 @@ async function main() {
     geocoded,
     posts: written.map((w) => ({ slug: w.slug, cover: w.cover })),
     url,
-    caption: caption({ ...first.meta, description: form.description }, url),
+    caption: caption({ ...first.meta, description: form.description }, locations[form.place]),
   };
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
