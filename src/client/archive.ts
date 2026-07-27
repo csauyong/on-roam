@@ -168,16 +168,20 @@ function boot() {
   const esc = (s: string) =>
     s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-  function photoHTML(img: ImgRef, dateMs: number, alt = '', onPhotoTitle?: string) {
-    return `<span class="photo"><img src="${img.src}" width="${img.w}" height="${img.h}" alt="${esc(alt)}">${
-      onPhotoTitle ? `<span class="ptitle">${esc(onPhotoTitle)}</span>` : ''
-    }<span class="stamp">${fmtStamp(new Date(dateMs))}</span></span>`;
+  /* Long posts carry their title centred on the photo and nothing else;
+     short posts carry place + date as the quartz stamp in the corner. */
+  function photoHTML(img: ImgRef, p: PostData, alt = '') {
+    const mark =
+      p.type === 'reflection'
+        ? `<span class="ptitle">${esc(p.title)}</span>`
+        : `<span class="stamp"><span class="loc">${esc(p.place)}</span>${fmtStamp(new Date(p.date))}</span>`;
+    return `<span class="photo"><img src="${img.src}" width="${img.w}" height="${img.h}" alt="${esc(
+      alt,
+    )}">${mark}</span>`;
   }
 
   function showPreview(dot: HTMLElement, p: PostData) {
-    preview.innerHTML =
-      photoHTML(p.small, p.date, '', p.type === 'reflection' ? p.title : undefined) +
-      `<div class="cap">${esc(p.cap)}</div>`;
+    preview.innerHTML = photoHTML(p.small, p) + `<div class="cap">${esc(p.cap)}</div>`;
     const r = dot.getBoundingClientRect();
     preview.style.left = `${r.left + r.width / 2}px`;
     preview.style.top = `${r.top}px`;
@@ -196,10 +200,11 @@ function boot() {
       .join('');
     postCard.className = isRef ? 'post reflection' : 'post';
     postCard.innerHTML =
-      photoHTML(p.large, p.date, p.title, isRef ? p.title : undefined) +
-      (isRef ? '' : `<h2>${esc(p.title)}</h2>`) +
-      `<div class="meta">${esc(p.place)} · ${fmtDMY(new Date(p.date))}</div>
-       ${paras}
+      photoHTML(p.large, p, p.title) +
+      (isRef
+        ? `<div class="meta">${esc(p.place)} · ${fmtDMY(new Date(p.date))}</div>`
+        : `<h2>${esc(p.title)}</h2>`) +
+      `${paras}
        <button class="close" id="closeBtn">back to the route</button>`;
     overlay.classList.add('open');
     const c = document.getElementById('closeBtn')!;

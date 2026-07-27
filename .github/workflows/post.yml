@@ -1,0 +1,113 @@
+name: post
+
+# Phase 2: a "New post" issue becomes content, a commit, and a live URL.
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: content-write
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    if: contains(github.event.issue.labels.*.name, 'post')
+    runs-on: ubuntu-latest
+    outputs:
+      ok: ${{ steps.ingest.outputs.ok }}
+      url: ${{ steps.ingest.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Parse issue, download photos, write content
+        id: ingest
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SITE_URL: ${{ vars.SITE_URL || format('https://{0}.github.io', github.repository_owner) }}
+          BASE_PATH: ${{ vars.BASE_PATH || '/' }}
+        run: |
+          set +e
+          node scripts/ingest-issue.mjs > result.json
+          code=$?
+          set -e
+          cat result.json
+          if [ $code -ne 0 ]; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+          echo "url=$(jq -r .url result.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Report a parse or download failure
+        if: steps.ingest.outputs.ok != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          err=$(jq -r '.error // "unknown error"' result.json)
+          printf 'Could not turn this into a post:\n\n> %s\n\nEdit the issue and reopen it, or fix `content/` by hand.\n' "$err" \
+            | gh issue comment "${{ github.event.issue.number }}" --body-file -
+          gh issue edit "${{ github.event.issue.number }}" --add-label needs-fix
+          exit 1
+
+      - name: Commit the new content
+        run: |
+          git config user.name "on roam bot"
+          git config user.email "actions@github.com"
+          git add content/
+          git -c core.pager=cat diff --cached --stat
+          git commit -m "post: ${{ github.event.issue.title }} (#${{ github.event.issue.number }})"
+          git push
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ingest-result
+          path: result.json
+          retention-days: 7
+
+  deploy:
+    needs: ingest
+    if: needs.ingest.outputs.ok == 'true'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy.yml
+
+  respond:
+    needs: [ingest, deploy]
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ingest-result
+
+      - name: Comment the live URL and caption, then close
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          {
+            echo "It's live: ${{ needs.ingest.outputs.url }}"
+            echo
+            jq -r '"Posts: " + ([.posts[] | .slug + (if .cover then " (cover)" else "" end)] | join(", "))' result.json
+            jq -r 'if .geocoded then "Geocoded \(.trip.place) → \(.geocoded.lat), \(.geocoded.lng) (cached in content/locations.json)." else empty end' result.json
+            jq -r '"Trip: `\(.trip.id)` \(.trip.start) → \(.trip.end)."' result.json
+            echo
+            echo "Caption — add the \`publish\` label to post it:"
+            echo
+            echo '```'
+            jq -r .caption result.json
+            echo '```'
+          } | gh issue comment "${{ github.event.issue.number }}" --repo "$REPO" --body-file -
+          gh issue close "${{ github.event.issue.number }}" --repo "$REPO"

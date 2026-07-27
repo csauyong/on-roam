@@ -108,8 +108,11 @@ const round = (v: number) => Math.round(v * 10) / 10;
         >
           <span class="photo">
             <img src={img.src} width={img.w} height={img.h} alt={post.title} loading="lazy" decoding="async" />
-            {post.type === 'reflection' && <span class="ptitle">{post.title}</span>}
-            <span class="stamp">{fmtStamp(new Date(Date.parse(post.date)))}</span>
+            {post.type === 'reflection' ? (
+              <span class="ptitle">{post.title}</span>
+            ) : (
+              <span class="stamp"><span class="loc">{post.place}</span>{fmtStamp(new Date(Date.parse(post.date)))}</span>
+            )}
           </span>
         </a>
       );
@@ -198,11 +201,17 @@ const round = (v: number) => Math.round(v * 10) / 10;
           height={imgs[openPost.slug]!.large.h}
           alt={openPost.title}
         />
-        {openPost.type === 'reflection' && <span class="ptitle">{openPost.title}</span>}
-        <span class="stamp">{fmtStamp(new Date(Date.parse(openPost.date)))}</span>
+        {openPost.type === 'reflection' ? (
+          <span class="ptitle">{openPost.title}</span>
+        ) : (
+          <span class="stamp"><span class="loc">{openPost.place}</span>{fmtStamp(new Date(Date.parse(openPost.date)))}</span>
+        )}
       </span>
-      {openPost.type !== 'reflection' && <h2>{openPost.title}</h2>}
-      <div class="meta">{openPost.place} · {fmtDMY(new Date(Date.parse(openPost.date)))}</div>
+      {openPost.type === 'reflection' ? (
+        <div class="meta">{openPost.place} · {fmtDMY(new Date(Date.parse(openPost.date)))}</div>
+      ) : (
+        <h2>{openPost.title}</h2>
+      )}
       {openParas.map((t) => <p>{t}</p>)}
     </article>
   )}

@@ -1,0 +1,126 @@
+name: publish
+
+# Phase 3: adding the `publish` label to a post issue bakes the social cover,
+# deploys it, and posts to Instagram and Threads. Never automatic on creation.
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: content-write
+  cancel-in-progress: false
+
+jobs:
+  cover:
+    if: github.event.label.name == 'publish'
+    runs-on: ubuntu-latest
+    outputs:
+      ok: ${{ steps.cover.outputs.ok }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Bake the datestamp into a social cover
+        id: cover
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          SITE_URL: ${{ vars.SITE_URL || format('https://{0}.github.io', github.repository_owner) }}
+          BASE_PATH: ${{ vars.BASE_PATH || '/' }}
+        run: |
+          set +e
+          node scripts/publish-social.mjs --cover > cover.json
+          code=$?
+          set -e
+          cat cover.json
+          [ $code -eq 0 ] && echo "ok=true" >> "$GITHUB_OUTPUT" || echo "ok=false" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Report a cover failure
+        if: steps.cover.outputs.ok != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          err=$(jq -r '.error // "unknown error"' cover.json)
+          printf 'Could not build the social cover:\n\n> %s\n' "$err" \
+            | gh issue comment "${{ github.event.issue.number }}" --body-file -
+          gh issue edit "${{ github.event.issue.number }}" --remove-label publish
+          exit 1
+
+      - name: Commit the cover
+        run: |
+          git config user.name "on roam bot"
+          git config user.email "actions@github.com"
+          git add public/social/
+          git commit -m "social cover for #${{ github.event.issue.number }}"
+          git push
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cover-result
+          path: cover.json
+          retention-days: 7
+
+  deploy:
+    needs: cover
+    if: needs.cover.outputs.ok == 'true'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy.yml
+
+  social:
+    needs: [cover, deploy]
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Post to Instagram and Threads
+        id: social
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          SITE_URL: ${{ vars.SITE_URL || format('https://{0}.github.io', github.repository_owner) }}
+          BASE_PATH: ${{ vars.BASE_PATH || '/' }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+        run: |
+          set +e
+          node scripts/publish-social.mjs --post > social.json
+          set -e
+          cat social.json
+
+      - name: Comment the result
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          {
+            if [ "$(jq -r .ok social.json)" != "true" ]; then
+              printf 'Publishing failed:\n\n> %s\n' "$(jq -r '.error // "unknown error"' social.json)"
+            else
+              jq -r '"Cover: " + .coverUrl'  social.json
+              jq -r 'if .instagram.permalink then "Instagram: " + .instagram.permalink
+                     elif .instagram.skipped then "Instagram: skipped — " + .instagram.skipped
+                     else "Instagram: failed — " + (.instagram.error // "unknown") end' social.json
+              jq -r 'if .threads.permalink then "Threads: " + .threads.permalink
+                     elif .threads.skipped then "Threads: skipped — " + .threads.skipped
+                     else "Threads: failed — " + (.threads.error // "unknown") end' social.json
+            fi
+          } | gh issue comment "${{ github.event.issue.number }}" --repo "$REPO" --body-file -

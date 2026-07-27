@@ -87,16 +87,18 @@ body { background: var(--paper); color: var(--ink); font-family: system-ui, -app
     radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(20, 18, 14, 0.28)),
     url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/><feColorMatrix type='saturate' values='0'/></filter><rect width='120' height='120' filter='url(%23n)' opacity='.14'/></svg>");
   mix-blend-mode: multiply; pointer-events: none; }
-.stamp { position: absolute; right: 8px; bottom: 6px; z-index: 2; font-family: var(--mono); font-size: 11px;
+/* Short posts: the film-camera quartz stamp in the bottom corner carries
+   place and date, and nothing appears under the photo but the title. */
+.stamp { position: absolute; right: 8px; bottom: 6px; z-index: 2; font-family: var(--mono); font-size: 9.5px;
          letter-spacing: 0.08em; color: var(--stamp); transform: skewX(-6deg);
+         display: flex; align-items: baseline; gap: 0.75em; white-space: nowrap;
          text-shadow: 0 0 5px rgba(255, 111, 30, 0.85), 0 0 1px rgba(255, 140, 60, 0.9); pointer-events: none; }
+.stamp .loc { letter-spacing: 0.2em; }
 
-/* reflection posts carry their short title on the photo itself.
-   Small photos (keyframe, preview) set it top-left, clear of the datestamp;
-   the full-size overlay photo sets it bottom-left. */
-.ptitle { position: absolute; left: 10px; top: 6px; z-index: 2; font-family: var(--serif);
-          font-style: italic; color: var(--paper); font-size: 12.5px; letter-spacing: 0.02em;
-          max-width: 85%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+/* Long posts (reflections): the title alone, centred on the photo — no stamp. */
+.ptitle { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2;
+          width: 78%; text-align: center; text-wrap: balance; font-family: var(--serif);
+          font-style: italic; color: var(--paper); font-size: 12px; line-height: 1.35; letter-spacing: 0.02em;
           text-shadow: 0 1px 6px rgba(20, 18, 14, 0.8), 0 0 2px rgba(20, 18, 14, 0.55);
           pointer-events: none; }
 
@@ -116,6 +118,8 @@ body { background: var(--paper); color: var(--ink); font-family: system-ui, -app
 .preview .photo { width: 132px; }
 .preview .cap { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.14em; color: var(--mute);
                 padding: 6px 8px; white-space: nowrap; }
+.preview .photo .stamp { font-size: 8.5px; right: 6px; bottom: 5px; }
+.preview .photo .ptitle { font-size: 10.5px; }
 
 .overlay { position: fixed; inset: 0; z-index: 60; background: rgba(246, 245, 241, 0.94); display: none;
            align-items: center; justify-content: center; padding: 28px; overflow-y: auto; }
@@ -123,9 +127,9 @@ body { background: var(--paper); color: var(--ink); font-family: system-ui, -app
 .post { max-width: 560px; width: 100%; margin: auto; }
 .post .photo { width: fit-content; max-width: 100%; }
 .post .photo img { max-height: 62vh; width: auto; max-width: 100%; }
-.post .photo .stamp { font-size: 15px; right: 14px; bottom: 10px; }
-.post .photo .ptitle { font-size: 19px; left: 14px; top: auto; bottom: 10px; max-width: 62%; }
-.post h2 { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 22px; margin: 22px 0 6px; }
+.post .photo .stamp { font-size: 14px; right: 14px; bottom: 10px; }
+.post .photo .ptitle { font-size: 26px; width: 70%; }
+.post h2 { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 22px; margin: 20px 0 12px; }
 .post .meta { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.22em; color: var(--mute); margin-bottom: 14px; }
 .post p { font-size: 14.5px; line-height: 1.65; max-width: 52ch; }
 .post p + p { margin-top: 0.9em; }
@@ -149,10 +153,12 @@ body { background: var(--paper); color: var(--ink); font-family: system-ui, -app
 .ov-label { font-family: var(--mono); font-size: 11px; letter-spacing: 0.2em; fill: var(--ink); }
 .ov-home { font-family: var(--mono); font-size: 9px; letter-spacing: 0.3em; fill: var(--mute); }
 .fallback article { margin-bottom: 40px; }
-.fallback article h2 { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 20px; margin: 18px 0 6px; }
+.fallback article h2 { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 20px; margin: 18px 0 12px; }
 .fallback article .meta { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.22em; color: var(--mute);
                           margin-bottom: 12px; }
 .fallback article p { font-size: 14.5px; line-height: 1.65; max-width: 52ch; }
+.fallback article .photo .stamp { font-size: 14px; right: 14px; bottom: 10px; }
+.fallback article .photo .ptitle { font-size: 26px; width: 70%; }
 
 @media (prefers-reduced-motion: reduce) {
   .stage, .marker, .hint, .controls, .compass, .preview, .overlay, .spacer { display: none !important; }

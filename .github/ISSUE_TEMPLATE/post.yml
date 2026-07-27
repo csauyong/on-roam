@@ -1,0 +1,57 @@
+name: New post
+description: Add one or more photos to the roam.
+title: 'post: '
+labels: [post]
+body:
+  - type: input
+    id: place
+    attributes:
+      label: Place
+      description: The city or place name. New places are geocoded automatically.
+      placeholder: PARIS
+    validations:
+      required: true
+
+  - type: input
+    id: date
+    attributes:
+      label: Date
+      description: YYYY-MM-DD. Leave blank for today.
+      placeholder: 2026-02-13
+    validations:
+      required: false
+
+  - type: input
+    id: title
+    attributes:
+      label: Title
+      placeholder: zinc rooftops from the ninth
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: >
+        One paragraph for a short post. Several blank-line-separated paragraphs
+        make it a long-form reflection — the title then sits centred on the photo.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: cover
+    attributes:
+      label: Cover
+      options:
+        - label: Use this as the trip's keyframe cover photo
+          required: false
+
+  - type: textarea
+    id: photos
+    attributes:
+      label: Photos
+      description: Drag photos in here. The first one is the post's photo; extras become their own posts.
+      placeholder: (drop images here)
+    validations:
+      required: true

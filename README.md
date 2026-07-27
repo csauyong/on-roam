@@ -22,12 +22,13 @@ npm run dev
 
 One folder per post under `content/posts/<slug>/` with an untouched `photo.jpg`
 and a `meta.json` (`title`, `place`, `date`, `description`, `cover`, `tripId`,
-optional `type`). Two post types:
+optional `type`, and `issue` when the pipeline wrote it). Two post types:
 
-- `"photo"` (default) — the photo with its datestamp and a short description.
+- `"photo"` (default) — place and date sit in the bottom corner of the photo as
+  the quartz datestamp; only the title appears beneath it.
 - `"reflection"` — long-form caption (blank-line-separated paragraphs in
-  `description`, rendered in the serif) with the short title set on the photo
-  itself rather than under it.
+  `description`, rendered in the serif) with the title centred on the photo
+  itself and nothing else on the image.
 
 Trips live in `content/trips.json`, geocodes in `content/locations.json`.
 The Hong Kong → London move (origin, home base, moving day) is configured in
@@ -45,3 +46,43 @@ segment lengths, turn rate, layout offsets — lives in [src/config.ts](src/conf
 GitHub Pages via [.github/workflows/deploy.yml](.github/workflows/deploy.yml).
 For a project page set repo variables `SITE_URL` (e.g. `https://user.github.io`)
 and `BASE_PATH` (e.g. `/on-roam`); a user/custom-domain site needs neither.
+
+## Publishing
+
+**Posting.** Open a *New post* issue
+([.github/ISSUE_TEMPLATE/post.yml](.github/ISSUE_TEMPLATE/post.yml)): place,
+date (blank = today), title, description, a cover checkbox, and photos dragged
+into the body. [post.yml](.github/workflows/post.yml) then parses it, downloads
+the attachments, writes one post folder per photo (the first carries the title
+and description), geocodes any new place through Nominatim into
+`content/locations.json`, extends or creates the trip in `content/trips.json`,
+commits, deploys, comments the live URL and the caption, and closes the issue.
+A blank-line-separated description makes it a reflection. A post within
+`TRIP_GAP_DAYS` of an existing trip at the same place joins that trip; the
+generated trip `name` is a placeholder worth editing by hand.
+
+**Social.** Add the `publish` label to the closed issue.
+[publish.yml](.github/workflows/publish.yml) bakes the datestamp into
+`public/social/<slug>.jpg` with sharp (max 1440px long edge, same stamp styling
+as the site — reflections get the centred title instead), commits and deploys it
+so the image has a public URL, then posts to Instagram and Threads and comments
+the permalinks back. Nothing is posted automatically on creation.
+
+Secrets: `IG_USER_ID`, `IG_ACCESS_TOKEN`, `THREADS_USER_ID`,
+`THREADS_ACCESS_TOKEN`. Without them the run still builds and deploys the cover
+and reports each platform as skipped.
+
+The caption template — `"{title} — {place}, {date-long}. {description}"` plus the
+link and hashtag footer — lives in
+[caption.config.mjs](caption.config.mjs) and is the single source for both the
+issue comment and the posts.
+
+Both scripts run locally:
+
+```bash
+ISSUE_BODY="$(cat issue.md)" node scripts/ingest-issue.mjs --dry-run
+```
+
+```bash
+POST_SLUG=2026-02-13-paris-01 SITE_URL=https://user.github.io node scripts/publish-social.mjs --cover
+```

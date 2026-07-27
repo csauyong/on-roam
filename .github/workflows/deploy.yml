@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # the post pipeline calls this directly: a push made with GITHUB_TOKEN does
+  # not trigger `on: push`, so it cannot rely on the branch event above.
+  workflow_call:
 
 permissions:
   contents: read
