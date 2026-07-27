@@ -22,6 +22,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # When called from post.yml or publish.yml the triggering event is an
+          # `issues` one, so the default checkout is the SHA from before that
+          # workflow committed its content. Always take the tip of main.
+          ref: main
       - uses: actions/setup-node@v4
         with:
           node-version: 22

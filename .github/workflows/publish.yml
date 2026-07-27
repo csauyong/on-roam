@@ -62,8 +62,13 @@ jobs:
           git config user.name "on roam bot"
           git config user.email "actions@github.com"
           git add public/social/
-          git commit -m "social cover for #${{ github.event.issue.number }}"
-          git push
+          # re-publishing bakes a byte-identical cover; that is not a failure
+          if git diff --cached --quiet; then
+            echo "cover unchanged, nothing to commit"
+          else
+            git commit -m "social cover for #${{ github.event.issue.number }}"
+            git push
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
