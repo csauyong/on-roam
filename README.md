@@ -81,6 +81,13 @@ Secrets: `IG_USER_ID`, `IG_ACCESS_TOKEN`, `THREADS_USER_ID`,
 `THREADS_ACCESS_TOKEN`. Without them the run still builds and deploys the cover
 and reports each platform as skipped.
 
+Instagram publishes through the **Instagram Login** path — host
+`graph.instagram.com`, an Instagram User token, and the app permissions
+`instagram_business_basic` + `instagram_business_content_publish`. No Facebook
+Page is involved. To use the Facebook Login path instead (a Page token and
+`instagram_basic` + `instagram_content_publish` + `pages_read_engagement`), set
+the repo variable `IG_API_BASE` to `https://graph.facebook.com/v21.0`.
+
 The caption template — `"{title} — {place}, {date-long}. {description}"` plus the
 link and hashtag footer — lives in
 [caption.config.mjs](caption.config.mjs) and is the single source for both the

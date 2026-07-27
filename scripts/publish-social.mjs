@@ -20,7 +20,15 @@ import { POSTS, postUrl, readJSON } from './lib/content.mjs';
 import { buildSocialCover } from './lib/social-cover.mjs';
 
 const MODE = process.argv.includes('--cover') ? 'cover' : 'post';
-const IG_API = 'https://graph.facebook.com/v21.0';
+
+/* Instagram has two publishing paths and they differ only in host and token:
+     Instagram Login (default) — graph.instagram.com, an Instagram User token,
+       permissions instagram_business_basic + instagram_business_content_publish
+     Facebook Login — graph.facebook.com, a Facebook Page token, permissions
+       instagram_basic + instagram_content_publish + pages_read_engagement
+   Set IG_API_BASE to the Facebook host to switch. */
+/* `||`, not `??`: an unset Actions variable arrives as an empty string */
+const IG_API = process.env.IG_API_BASE || 'https://graph.instagram.com/v21.0';
 const TH_API = 'https://graph.threads.net/v1.0';
 const THREADS_MAX = 500;
 
