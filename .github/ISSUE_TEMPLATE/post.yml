@@ -17,7 +17,8 @@ body:
     attributes:
       label: Date
       description: YYYY-MM-DD. Leave blank for today.
-      placeholder: 2026-02-13
+      # quoted: unquoted, YAML reads this as a date and GitHub rejects the form
+      placeholder: '2026-02-13'
     validations:
       required: false
 
